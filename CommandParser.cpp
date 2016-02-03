@@ -74,6 +74,9 @@ void CommandParser::split_args(string input) {
 
       case WORD:
         // move to next & add unless a space
+        if (c == '\\') {
+          c = ss.get();
+        }
         if (ss.peek() == ' ') {
           state = OUTSIDE;
         }
@@ -89,10 +92,6 @@ void CommandParser::split_args(string input) {
           arg.push_back(c);
         }
         break;
-
-      case ESCAPE:
-        // if next is space, add it
-        break;
     }
   }
   if (arg.size() != 0) {
@@ -104,15 +103,6 @@ void CommandParser::split_args(string input) {
     command = args.front();
     args.erase(args.begin());
   }
-
-/*
-  std::stringstream ss(input);
-  string item = "";
-
-  while (getline(ss, item, ' ')) {
-    args.push_back(item);
-  }
-  */
 }
 
 /**

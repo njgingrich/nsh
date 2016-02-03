@@ -10,8 +10,7 @@ class CommandParser {
     enum State {
       OUTSIDE,
       WORD,
-      QUOTE,
-      ESCAPE
+      QUOTE
     };
     std::string read_line(char* prompt);
     void split_args(std::string input);
