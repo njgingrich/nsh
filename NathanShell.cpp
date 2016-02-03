@@ -1,8 +1,10 @@
 #include <iostream>
 #include <pwd.h>
+#include <stack.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
@@ -12,6 +14,7 @@
 
 using std::cout;
 using std::endl;
+using std::stack;
 using std::string;
 using std::vector;
 
@@ -20,6 +23,7 @@ using std::vector;
  * up the parser.
  */
 NathanShell::NathanShell() {
+  bg_processes = 0;
   uname(&uname_data); // get system information
   cmd_counter = 1;
   getcwd(cur_dir, 256);
@@ -74,8 +78,10 @@ Status NathanShell::check_builtins(string cmd) {
     print_user();
 
   } else {
-    // TODO: Implement process forking
-    return CMD_NOT_FOUND;
+    int status = run_external(cmd, args);
+    if (status == -1) {
+      return CMD_NOT_FOUND;
+    }
   }
 
   return OKAY;
@@ -148,6 +154,41 @@ string NathanShell::prompt_user() {
   sprintf(&prompt[0], "<%d %s %s> ", cmd_counter, uname_data.nodename, cur_dir);
 
   return parser.read_line(prompt);
+}
+
+int NathanShell::run_external(string cmd, vector<string> args) {
+  int pid = fork();
+  int status = 0;
+  if (pid == 0) { // new process
+    vector<char*> argv = str_to_charptr(cmd, args);
+    status = execvp(cmd.c_str(), &argv[0]);
+    if (status == -1) {
+      perror("An error occurred");
+    }
+
+  } else {
+    wait(&status);
+  }
+  return status;
+}
+
+/**
+ * Convert a vector<string> to vector<char*> to use in execvp().
+ * With convention, the first element in the vector<char*> is the
+ * name of the command used.
+ *
+ * @param args The arguments from the user input to convert.
+ * @param cmd The command inputted from the user.
+ * @return A vector<char*> of the arguments.
+ */
+vector<char*> NathanShell::str_to_charptr(string cmd, vector<string> args) {
+    vector<char*> argv;
+    argv.push_back(&cmd[0]);
+    for (vector<string>::iterator it = args.begin(); it != args.end(); ++it) {
+      argv.push_back(&(*it)[0]);
+    }
+    argv.push_back((char *) NULL); // needs to be null-terminated
+    return argv;
 }
 
 /**

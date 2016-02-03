@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <regex>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -16,6 +17,7 @@ using std::cout;
 using std::cin;
 using std::endl;
 using std::getline;
+using std::regex;
 using std::string;
 using std::vector;
 
