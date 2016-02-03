@@ -42,22 +42,61 @@ string CommandParser::read_line(char* prompt) {
 
 /**
  * Split the input into the command and its arguments,
- * if they exist.
+ * if they exist. Will separate arguments based on spaces
+ * or quoted strings. Spaces can be escaped with backslash.
  *
  * @param input The raw input from the user.
  */
 void CommandParser::split_args(string input) {
-  using std::regex;
-  using std::smatch;
-  using std::sregex_iterator;
+  // clear args & command
+  args.clear();
+  command = "";
 
-  regex re("(\"[^\"]*\")|([^\\s]+(\\\\ )?[^\\s]+)");
-  sregex_iterator next(input.begin(), input.end(), re);
-  sregex_iterator end;
-  while (next != end) {
-    smatch match = *next;
-    args.push_back(match.str());
-    next++;
+  std::stringstream ss(input);
+  State state = WORD;
+  string arg;
+  while (ss.peek() != EOF) {
+    char c = ss.get();
+
+    switch (state) {
+      case OUTSIDE:
+        // move to next, dont add to word
+        if (ss.peek() == '"') {
+          state = QUOTE;
+          args.push_back(arg);
+          arg.clear();
+        } else if (ss.peek() != ' ') {
+          state = WORD;
+          args.push_back(arg);
+          arg.clear();
+        }
+        break;
+
+      case WORD:
+        // move to next & add unless a space
+        if (ss.peek() == ' ') {
+          state = OUTSIDE;
+        }
+        arg.push_back(c);
+        break;
+
+      case QUOTE:
+        // move to next & add unless end quote
+        if (ss.peek() == '"') {
+          state = OUTSIDE;
+        }
+        if (c != '"') {
+          arg.push_back(c);
+        }
+        break;
+
+      case ESCAPE:
+        // if next is space, add it
+        break;
+    }
+  }
+  if (arg.size() != 0) {
+    args.push_back(arg);
   }
 
   // remove the command from the args list
@@ -66,19 +105,13 @@ void CommandParser::split_args(string input) {
     args.erase(args.begin());
   }
 
-
 /*
   std::stringstream ss(input);
   string item = "";
 
-  // clear args & command
-  args.clear();
-  command = "";
-
   while (getline(ss, item, ' ')) {
     args.push_back(item);
   }
-
   */
 }
 
