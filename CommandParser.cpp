@@ -6,7 +6,6 @@
  */
 
 #include <iostream>
-#include <regex>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -17,7 +16,6 @@ using std::cout;
 using std::cin;
 using std::endl;
 using std::getline;
-using std::regex;
 using std::string;
 using std::vector;
 
@@ -58,7 +56,7 @@ void CommandParser::split_args(string input) {
   while (getline(ss, item, ' ')) {
     args.push_back(item);
   }
-
+  // remove the command from the args list
   if (!args.empty()) {
     command = args.front();
     args.erase(args.begin());

@@ -34,7 +34,6 @@ class NathanShell {
     int cmd_counter;
     char cur_dir[256];
     struct utsname uname_data;
-    std::stack history;
 
     CommandParser parser;
 };
