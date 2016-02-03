@@ -53,6 +53,21 @@ void CommandParser::split_args(string input) {
   args.clear();
   command = "";
 
+  while (ss.peek() != EOF) {
+    char c == ss.get();
+    string arg;
+    if (c == '"') {
+      if (ss.peek() != '"') { // get all until end quote
+        arg.push_back(c);
+      }
+    } else if (c == '\\') {
+      
+    }
+  }
+
+
+
+
   while (getline(ss, item, ' ')) {
     args.push_back(item);
   }
