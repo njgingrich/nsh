@@ -17,7 +17,6 @@ using std::cout;
 using std::cin;
 using std::endl;
 using std::getline;
-using std::regex;
 using std::string;
 using std::vector;
 
@@ -48,6 +47,27 @@ string CommandParser::read_line(char* prompt) {
  * @param input The raw input from the user.
  */
 void CommandParser::split_args(string input) {
+  using std::regex;
+  using std::smatch;
+  using std::sregex_iterator;
+
+  regex re("(\"[^\"]*\")|([^\\s]+(\\\\ )?[^\\s]+)");
+  sregex_iterator next(input.begin(), input.end(), re);
+  sregex_iterator end;
+  while (next != end) {
+    smatch match = *next;
+    args.push_back(match.str());
+    next++;
+  }
+
+  // remove the command from the args list
+  if (!args.empty()) {
+    command = args.front();
+    args.erase(args.begin());
+  }
+
+
+/*
   std::stringstream ss(input);
   string item = "";
 
@@ -59,10 +79,7 @@ void CommandParser::split_args(string input) {
     args.push_back(item);
   }
 
-  if (!args.empty()) {
-    command = args.front();
-    args.erase(args.begin());
-  }
+  */
 }
 
 /**

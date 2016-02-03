@@ -1,6 +1,5 @@
 #include <iostream>
 #include <pwd.h>
-#include <stack.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -14,7 +13,6 @@
 
 using std::cout;
 using std::endl;
-using std::stack;
 using std::string;
 using std::vector;
 
