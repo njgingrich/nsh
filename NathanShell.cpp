@@ -157,6 +157,14 @@ string NathanShell::prompt_user() {
 int NathanShell::run_external(string cmd, vector<string> args) {
   int pid = fork();
   int status = 0;
+  bool background = false;
+  if (args.empty()) {
+    background = false;
+  } else if (args.back() == "&") {
+    background = true;
+    args.pop_back(); // remove '&' from args
+  }
+
   if (pid == 0) { // new process
     vector<char*> argv = str_to_charptr(cmd, args);
     status = execvp(cmd.c_str(), &argv[0]);
@@ -165,7 +173,12 @@ int NathanShell::run_external(string cmd, vector<string> args) {
     }
 
   } else {
-    wait(&status);
+    if (background) {
+      cout << pid << " " << cmd << endl;
+      return status;
+    } else {
+      wait(&status);
+    }
   }
   return status;
 }
