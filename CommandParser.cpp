@@ -6,7 +6,6 @@
  */
 
 #include <iostream>
-#include <regex>
 #include <string>
 #include <sstream>
 #include <vector>
