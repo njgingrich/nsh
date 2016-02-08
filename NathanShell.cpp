@@ -1,4 +1,5 @@
 #include <iostream>
+#include <map>
 #include <pwd.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -13,6 +14,7 @@
 
 using std::cout;
 using std::endl;
+using std::map;
 using std::string;
 using std::vector;
 
@@ -26,6 +28,19 @@ NathanShell::NathanShell() {
   cmd_counter = 1;
   getcwd(cur_dir, 256);
   parser = CommandParser();
+}
+
+/**
+ * Check the status of background processes currently running.
+ * Any processes that have ended will be printed with the reason
+ * for their exit.
+ */
+void NathanShell::check_background() {
+  int pid;
+  while ((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0) {
+    // cout << pid << " exited." << endl;
+    job_list.erase(pid);
+  }
 }
 
 /**
@@ -62,6 +77,10 @@ Status NathanShell::check_builtins(string cmd) {
     pwd();
 
   } else if (cmd == "terminate") {
+    if (arg_count != 1) {
+      return ARGS_ERR;
+    }
+    terminate(atoi(args.front().c_str()));
 
   } else if (cmd == "uid") {
     if (arg_count != 0) {
@@ -175,6 +194,7 @@ int NathanShell::run_external(string cmd, vector<string> args) {
   } else {
     if (background) {
       cout << pid << " " << cmd << endl;
+      job_list[pid] = cmd; // add to jobs list
       return status;
     } else {
       wait(&status);
@@ -222,7 +242,9 @@ void NathanShell::cd(string dir) {
  * Each process will be outputted like <PID> <Command line>
  */
 void NathanShell::jobs() {
-
+  for (map<int, string>::iterator it = job_list.begin(); it != job_list.end(); ++it) {
+    cout << it->first << " " << it->second << endl;
+  }
 }
 
 /**
@@ -248,13 +270,44 @@ void NathanShell::pwd() {
 }
 
 /**
+ * Terminate a currently-running background process.
+ *
+ * @param pid The id of the process to terminate.
+ */
+void NathanShell::terminate(int pid) {
+  int status = kill(pid, SIGKILL);
+  if (status < 0) {
+    perror("An error occurred");
+  }
+}
+
+void handle_sigchld(int sig) {
+  if (sig) {}
+  int pid;
+  while ((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0) {
+    cout << pid << " exited." << endl;
+  }
+}
+
+/**
  * The main program loop. Initializes the shell, then loops.
  */
 int main() {
   NathanShell shell = NathanShell();
   Status status = OKAY;
 
+  // handle bg processes exiting
+  struct sigaction sa;
+  sa.sa_handler = &handle_sigchld;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+  if (sigaction(SIGCHLD, &sa, 0) == -1) {
+      perror(0);
+        exit(1);
+  }
+
   do {
+    shell.check_background();
     string input = shell.prompt_user();
     shell.parse_input(input);
     status = shell.execute_command();

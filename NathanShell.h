@@ -2,6 +2,7 @@
 #define __NATHAN_SHELL__
 
 #include <iostream>
+#include <map>
 #include <string>
 
 #include "CommandParser.h"
@@ -14,6 +15,7 @@ class NathanShell {
     NathanShell();
 
     // Shell functions
+    void check_background();
     Status check_builtins(std::string cmd);
     Status execute_command();
     void parse_input(std::string input);
@@ -28,12 +30,14 @@ class NathanShell {
     void print_uid();
     void print_user();
     void pwd();
+    void terminate(int pid);
 
   private:
     int bg_processes;
     int cmd_counter;
     char cur_dir[256];
     struct utsname uname_data;
+    std::map<int, std::string> job_list;
 
     CommandParser parser;
 };
