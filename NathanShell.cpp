@@ -297,6 +297,10 @@ void handle_sigchld(int sig) {
   if (sig) {} // avoid 'handle 'unused' warning as error'
 }
 
+void handle_sigint(int sig) {
+  if (sig) {} // ignore ctrl+C
+}
+
 /**
  * The main program loop. Initializes the shell, then loops.
  */
@@ -310,6 +314,7 @@ int main() {
   if (sigaction(SIGCHLD, &sa, 0) == -1) {
       perror(0);
   }
+  signal(SIGINT, &handle_sigint);
 
   do {
     shell.check_background();
