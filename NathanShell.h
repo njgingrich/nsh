@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <utility>
 
 #include "CommandParser.h"
 #include "Status.h"
@@ -37,7 +38,7 @@ class NathanShell {
     int cmd_counter;
     char cur_dir[256];
     struct utsname uname_data;
-    std::map<int, std::string> job_list;
+    std::map<int, std::pair<int, std::string>> job_list;
 
     CommandParser parser;
 };

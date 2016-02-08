@@ -6,6 +6,7 @@
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 #include "CommandParser.h"
@@ -15,6 +16,7 @@
 using std::cout;
 using std::endl;
 using std::map;
+using std::pair;
 using std::string;
 using std::vector;
 
@@ -38,8 +40,11 @@ NathanShell::NathanShell() {
 void NathanShell::check_background() {
   int pid;
   while ((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0) {
-    // cout << pid << " exited." << endl;
-    job_list.erase(pid);
+    if (job_list.count(pid) > 0) {
+      cout << pid << " exited." << endl;
+    } else {
+      cout << pid << " terminated." << endl;
+    }
   }
 }
 
@@ -194,7 +199,7 @@ int NathanShell::run_external(string cmd, vector<string> args) {
   } else {
     if (background) {
       cout << pid << " " << cmd << endl;
-      job_list[pid] = cmd; // add to jobs list
+      job_list[pid] = pair<int, string>(0, cmd); // add to jobs list
       return status;
     } else {
       wait(&status);
@@ -242,8 +247,8 @@ void NathanShell::cd(string dir) {
  * Each process will be outputted like <PID> <Command line>
  */
 void NathanShell::jobs() {
-  for (map<int, string>::iterator it = job_list.begin(); it != job_list.end(); ++it) {
-    cout << it->first << " " << it->second << endl;
+  for (map<int, pair<int, string>>::iterator it = job_list.begin(); it != job_list.end(); ++it) {
+    cout << it->first << " " << it->second.second << endl;
   }
 }
 
@@ -278,15 +283,17 @@ void NathanShell::terminate(int pid) {
   int status = kill(pid, SIGKILL);
   if (status < 0) {
     perror("An error occurred");
+  } else {
+    // set the int value to 1
+    /*map<int, pair<int, string>>::iterator job = job_list.find(pid);
+    if (job != job_list.end()) {
+      job_list[pid] = pair<int, string>(1, (job->second).second);
+    }*/
   }
 }
 
 void handle_sigchld(int sig) {
-  if (sig) {}
-  int pid;
-  while ((pid = waitpid((pid_t)(-1), 0, WNOHANG)) > 0) {
-    cout << pid << " exited." << endl;
-  }
+  if (sig) {} // avoid 'handle 'unused' warning as error'
 }
 
 /**
@@ -299,11 +306,8 @@ int main() {
   // handle bg processes exiting
   struct sigaction sa;
   sa.sa_handler = &handle_sigchld;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
   if (sigaction(SIGCHLD, &sa, 0) == -1) {
       perror(0);
-        exit(1);
   }
 
   do {
