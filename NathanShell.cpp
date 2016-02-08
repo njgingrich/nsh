@@ -1,6 +1,7 @@
 #include <iostream>
 #include <map>
 #include <pwd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -285,10 +286,10 @@ void NathanShell::terminate(int pid) {
     perror("An error occurred");
   } else {
     // set the int value to 1
-    /*map<int, pair<int, string>>::iterator job = job_list.find(pid);
+    map<int, pair<int, string>>::iterator job = job_list.find(pid);
     if (job != job_list.end()) {
       job_list[pid] = pair<int, string>(1, (job->second).second);
-    }*/
+    }
   }
 }
 
