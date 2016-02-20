@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <pwd.h>
 #include <signal.h>
@@ -63,6 +65,12 @@ Status NathanShell::check_builtins(string cmd) {
       return ARGS_ERR;
     }
     cd(args.front());
+
+  } else if (cmd == "dir") {
+    if (arg_count > 2) {
+      return ARGS_ERR;
+    }
+    dir(args);
 
   } else if (cmd == "exit") {
     if (arg_count != 0) {
@@ -241,6 +249,30 @@ void NathanShell::cd(string dir) {
   } else {
     getcwd(cur_dir, 256); // update the prompt cwd
   }
+}
+
+/**
+ * List the files in the current working directory.
+ *
+ * @param args The arguments from the user's input.
+ */
+void NathanShell::dir(vector<string> args) {
+  // Check for the optional flags
+  bool a_flag = false; // access time vs mod time
+  bool b_flag = false; // block size vs actual size
+  if (!args.empty()) {
+    auto a_exists = std::find(args.begin(), args.end(), "-a");
+    auto b_exists = std::find(args.begin(), args.end(), "-b");
+    if (a_exists != args.end()) {
+      a_flag = true;
+    }
+    if (b_exists != args.end()) {
+      b_flag = true;
+    }
+
+  }
+
+
 }
 
 /**

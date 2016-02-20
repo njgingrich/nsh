@@ -27,6 +27,7 @@ class NathanShell {
 
     // Builtins
     void cd(std::string dir);
+    void dir(std::vector<std::string> args);
     void jobs();
     void print_uid();
     void print_user();
