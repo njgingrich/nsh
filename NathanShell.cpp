@@ -1,10 +1,15 @@
 #include <algorithm>
+#include <ctime>
+#include <dirent.h>
+#include <grp.h>
 #include <iostream>
 #include <iterator>
 #include <map>
 #include <pwd.h>
 #include <signal.h>
+#include <sstream>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -272,7 +277,36 @@ void NathanShell::dir(vector<string> args) {
 
   }
 
+  DIR *dir;
+  struct dirent *dp;
+  dir = opendir(".");
 
+  vector<string> entries;
+  while ((dp = readdir(dir)) != NULL) {
+    entries.push_back(dp->d_name);
+  }
+  std::sort(entries.begin(), entries.end());
+  for (auto it = entries.begin(); it != entries.end(); ++it) {
+    struct stat info;
+    if (stat((*it).c_str(), &info) < 0) {
+      perror("An error occurred");
+      return;
+    }
+
+    string perms = get_permissions(info.st_mode);
+    string owner = get_owner(info.st_uid);
+    string group = get_group(info.st_gid);
+    string time  = a_flag ? get_time(info.st_atime) : get_time(info.st_mtime);
+    int filesize = b_flag ? info.st_blocks : info.st_size;
+    /*
+     * output:
+     * -rwxrwxrwx owner group size mod_date filename
+     */
+    cout << perms << " " << owner << "\t" << group << "\t";
+    cout << filesize << "\t" << time << "\t" << *it << endl;
+  }
+
+  closedir(dir);
 }
 
 /**
@@ -323,6 +357,57 @@ void NathanShell::terminate(int pid) {
       job_list[pid] = pair<int, string>(1, (job->second).second);
     }
   }
+}
+
+string NathanShell::get_group(gid_t gid) {
+  struct group* grp = getgrgid(gid);
+  return string(grp->gr_name);
+}
+
+string NathanShell::get_owner(uid_t uid) {
+  struct passwd* pwd = getpwuid(uid);
+  return string(pwd->pw_name);
+}
+
+string NathanShell::get_permissions(mode_t mode) {
+  std::stringstream ss;
+  // Get filetype
+  if (S_ISBLK(mode)) {
+    ss << "b";
+  } else if (S_ISCHR(mode)) {
+    ss << "c";
+  } else if (S_ISDIR(mode)) {
+    ss << "d";
+  } else if (S_ISFIFO(mode)) {
+    ss << "f";
+  } else if (S_ISREG(mode)) {
+    ss << "-";
+  } else if (S_ISLNK(mode)) {
+    ss << "l";
+  } else {
+    ss << "-";
+  }
+
+  // user-group-other permissions
+  ss << ((mode & S_IRUSR) ? "r" : "-");
+  ss << ((mode & S_IWUSR) ? "w" : "-");
+  ss << ((mode & S_IXUSR) ? "x" : "-");
+  ss << ((mode & S_IRGRP) ? "r" : "-");
+  ss << ((mode & S_IWGRP) ? "w" : "-");
+  ss << ((mode & S_IXGRP) ? "x" : "-");
+  ss << ((mode & S_IROTH) ? "r" : "-");
+  ss << ((mode & S_IWOTH) ? "w" : "-");
+  ss << ((mode & S_IXOTH) ? "x" : "-");
+  return ss.str();
+}
+
+string NathanShell::get_time(time_t time) {
+  std::tm* t = std::localtime(&time);
+  char new_time[100];
+
+  // TODO: change to time if younger than 6mo
+  std::strftime(new_time, sizeof(new_time), "%b %d\t%Y", t);
+  return string(new_time);
 }
 
 void handle_sigchld(int sig) {

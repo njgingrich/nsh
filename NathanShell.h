@@ -4,6 +4,8 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <utility>
 
 #include "CommandParser.h"
@@ -35,6 +37,11 @@ class NathanShell {
     void terminate(int pid);
 
   private:
+    std::string get_group(gid_t gid);
+    std::string get_owner(uid_t uid);
+    std::string get_permissions(mode_t mode);
+    std::string get_time(time_t time);
+
     int bg_processes;
     int cmd_counter;
     char cur_dir[256];
