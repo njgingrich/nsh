@@ -4,6 +4,7 @@
 #include <grp.h>
 #include <iostream>
 #include <iterator>
+#include <list>
 #include <map>
 #include <pwd.h>
 #include <signal.h>
@@ -23,6 +24,7 @@
 
 using std::cout;
 using std::endl;
+using std::list;
 using std::map;
 using std::pair;
 using std::string;
@@ -72,7 +74,7 @@ Status NathanShell::check_builtins(string cmd) {
     cd(args.front());
 
   } else if (cmd == "dir") {
-    if (arg_count > 2) {
+    if (arg_count > 3) {
       return ARGS_ERR;
     }
     dir(args);
@@ -274,18 +276,34 @@ void NathanShell::dir(vector<string> args) {
     if (b_exists != args.end()) {
       b_flag = true;
     }
-
   }
 
   DIR *dir;
   struct dirent *dp;
   dir = opendir(".");
 
-  vector<string> entries;
+  list<string> entries;
   while ((dp = readdir(dir)) != NULL) {
     entries.push_back(dp->d_name);
   }
-  std::sort(entries.begin(), entries.end());
+  entries.sort([](const string &a, const string &b) {
+    // ignore periods (hidden files) by removing them
+    string lhs(a);
+    string rhs(b);
+    lhs.erase(std::remove(lhs.begin(), lhs.end(), '.'), lhs.end());
+    rhs.erase(std::remove(rhs.begin(), rhs.end(), '.'), rhs.end());
+    unsigned int i = 0;
+    while (i < lhs.length() && i < rhs.length()) {
+      if (tolower(lhs.at(i)) < tolower(rhs.at(i))) {
+        return true;
+      } else if (tolower(lhs.at(i)) > tolower(rhs.at(i))) {
+        return false;
+      } else {
+        i++;
+      }
+    }
+    return a.length() < b.length();
+  });
   for (auto it = entries.begin(); it != entries.end(); ++it) {
     struct stat info;
     if (stat((*it).c_str(), &info) < 0) {
@@ -300,7 +318,7 @@ void NathanShell::dir(vector<string> args) {
     int filesize = b_flag ? info.st_blocks : info.st_size;
     /*
      * output:
-     * -rwxrwxrwx owner group size mod_date filename
+     * ?rwxrwxrwx owner group size mod_date filename
      */
     cout << perms << " " << owner << "\t" << group << "\t";
     cout << filesize << "\t" << time << "\t" << *it << endl;
@@ -403,10 +421,15 @@ string NathanShell::get_permissions(mode_t mode) {
 
 string NathanShell::get_time(time_t time) {
   std::tm* t = std::localtime(&time);
+  std::time_t now = std::time(NULL);
+  double seconds = std::difftime(now, time);
   char new_time[100];
 
-  // TODO: change to time if younger than 6mo
-  std::strftime(new_time, sizeof(new_time), "%b %d\t%Y", t);
+  if (seconds < 15768000) { // 60s * 60m * 24h * 365d/2 = 6mo
+    std::strftime(new_time, sizeof(new_time), "%b %d\t%H:%M", t);
+  } else {
+    std::strftime(new_time, sizeof(new_time), "%b %d\t%Y", t);
+  }
   return string(new_time);
 }
 
