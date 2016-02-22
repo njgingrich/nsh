@@ -2,6 +2,7 @@
 #define __NATHAN_SHELL__
 
 #include <iostream>
+#include <list>
 #include <map>
 #include <string>
 #include <sys/stat.h>
@@ -37,6 +38,7 @@ class NathanShell {
     void terminate(int pid);
 
   private:
+    std::list<std::string> get_entries(std::string dir_name);
     std::string get_group(gid_t gid);
     std::string get_owner(uid_t uid);
     std::string get_permissions(mode_t mode);

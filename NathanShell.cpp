@@ -2,6 +2,7 @@
 #include <ctime>
 #include <dirent.h>
 #include <grp.h>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <list>
@@ -27,6 +28,7 @@ using std::endl;
 using std::list;
 using std::map;
 using std::pair;
+using std::setw;
 using std::string;
 using std::vector;
 
@@ -194,6 +196,13 @@ string NathanShell::prompt_user() {
   return parser.read_line(prompt);
 }
 
+/**
+ * Run an external program, specified by 'cmd'.
+ *
+ * @param cmd The name of the program to run.
+ * @param args The arguments to pass to the external program.
+ * @return The status from execvp.
+ */
 int NathanShell::run_external(string cmd, vector<string> args) {
   int pid = fork();
   int status = 0;
@@ -267,47 +276,36 @@ void NathanShell::dir(vector<string> args) {
   // Check for the optional flags
   bool a_flag = false; // access time vs mod time
   bool b_flag = false; // block size vs actual size
+  string dir_name = ".";
+  auto a_exists = std::find(args.begin(), args.end(), "-a");
+  auto b_exists = std::find(args.begin(), args.end(), "-b");
+  if (a_exists != args.end()) {
+    a_flag = true;
+    args.erase(a_exists);
+  }
+  if (b_exists != args.end()) {
+    b_flag = true;
+    args.erase(b_exists);
+  }
   if (!args.empty()) {
-    auto a_exists = std::find(args.begin(), args.end(), "-a");
-    auto b_exists = std::find(args.begin(), args.end(), "-b");
-    if (a_exists != args.end()) {
-      a_flag = true;
-    }
-    if (b_exists != args.end()) {
-      b_flag = true;
-    }
+    dir_name = args.front();
   }
 
-  DIR *dir;
-  struct dirent *dp;
-  dir = opendir(".");
+  chdir(dir_name.c_str());
+  list<string> entries = get_entries(dir_name);
 
-  list<string> entries;
-  while ((dp = readdir(dir)) != NULL) {
-    entries.push_back(dp->d_name);
+  struct stat dir_stat;
+  if (stat(dir_name.c_str(), &dir_stat) < 0) {
+    perror("An error occurred");
+    chdir(cur_dir);
+    return;
   }
-  entries.sort([](const string &a, const string &b) {
-    // ignore periods (hidden files) by removing them
-    string lhs(a);
-    string rhs(b);
-    lhs.erase(std::remove(lhs.begin(), lhs.end(), '.'), lhs.end());
-    rhs.erase(std::remove(rhs.begin(), rhs.end(), '.'), rhs.end());
-    unsigned int i = 0;
-    while (i < lhs.length() && i < rhs.length()) {
-      if (tolower(lhs.at(i)) < tolower(rhs.at(i))) {
-        return true;
-      } else if (tolower(lhs.at(i)) > tolower(rhs.at(i))) {
-        return false;
-      } else {
-        i++;
-      }
-    }
-    return a.length() < b.length();
-  });
+
   for (auto it = entries.begin(); it != entries.end(); ++it) {
     struct stat info;
     if (stat((*it).c_str(), &info) < 0) {
       perror("An error occurred");
+      chdir(cur_dir);
       return;
     }
 
@@ -320,11 +318,12 @@ void NathanShell::dir(vector<string> args) {
      * output:
      * ?rwxrwxrwx owner group size mod_date filename
      */
-    cout << perms << " " << owner << "\t" << group << "\t";
+    cout << perms << " " << setw(8) << owner << "\t";
+    cout << setw(8) << group << "\t";
     cout << filesize << "\t" << time << "\t" << *it << endl;
   }
 
-  closedir(dir);
+  chdir(cur_dir);
 }
 
 /**
@@ -377,16 +376,75 @@ void NathanShell::terminate(int pid) {
   }
 }
 
+/**
+ * Get the entries in a directory for the given directory,
+ * or the file if the parameter is a file.
+ *
+ * @param dir_name The name of the directory, which could be a file.
+ * @return The list of entries, as std::strings.
+ */
+list<string> NathanShell::get_entries(string dir_name) {
+  DIR *dir;
+  list<string> entries;
+  struct dirent *dp;
+  if ((dir = opendir(dir_name.c_str())) == NULL) {
+    // not a directory, but if it's a file return it as the entry
+    entries.push_back(dir_name);
+    return entries;
+  }
+  while ((dp = readdir(dir)) != NULL) {
+    entries.push_back(dp->d_name);
+  }
+  entries.sort([](const string &a, const string &b) {
+    // ignore periods (hidden files) by removing them
+    string lhs(a);
+    string rhs(b);
+    lhs.erase(std::remove(lhs.begin(), lhs.end(), '.'), lhs.end());
+    rhs.erase(std::remove(rhs.begin(), rhs.end(), '.'), rhs.end());
+    unsigned int i = 0;
+    while (i < lhs.length() && i < rhs.length()) {
+      if (tolower(lhs.at(i)) < tolower(rhs.at(i))) {
+        return true;
+      } else if (tolower(lhs.at(i)) > tolower(rhs.at(i))) {
+        return false;
+      } else {
+        i++;
+      }
+    }
+    return a.length() < b.length();
+  });
+  closedir(dir);
+  return entries;
+}
+
+/**
+ * Get the group name from the group id for a file.
+ *
+ * @param gid The group id to search.
+ * @return The std::string of the group name.
+ */
 string NathanShell::get_group(gid_t gid) {
   struct group* grp = getgrgid(gid);
   return string(grp->gr_name);
 }
 
+/**
+ * Get the owner's username for a file.
+ *
+ * @param uid The uid of the user.
+ * @return The std::string of the username.
+ */
 string NathanShell::get_owner(uid_t uid) {
   struct passwd* pwd = getpwuid(uid);
   return string(pwd->pw_name);
 }
 
+/**
+ * Construct the unix permissions from a mode_t from a file.
+ *
+ * @param mode The st_mode from a stat() syscall.
+ * @return The string of permissions, represented by ?rwxrwxrwx.
+ */
 string NathanShell::get_permissions(mode_t mode) {
   std::stringstream ss;
   // Get filetype
@@ -419,6 +477,14 @@ string NathanShell::get_permissions(mode_t mode) {
   return ss.str();
 }
 
+/**
+ * Construct the formatted string for the given time to use
+ * in the dir command.
+ *
+ * @param time The time in milliseconds (time_t).
+ * @return The formatted string of output: Mon DD HH:MM,
+ * or Mon DD YYYY if the file is older than 6 months.
+ */
 string NathanShell::get_time(time_t time) {
   std::tm* t = std::localtime(&time);
   std::time_t now = std::time(NULL);
@@ -433,10 +499,20 @@ string NathanShell::get_time(time_t time) {
   return string(new_time);
 }
 
+/**
+ * Handle the SIGCHILD calls.
+ *
+ * @param sig The signal.
+ */
 void handle_sigchld(int sig) {
   if (sig) {} // avoid 'handle 'unused' warning as error'
 }
 
+/**
+ * Handle the SIGINT calls - ignore ctrl-C ending the program.
+ *
+ * @param sig The signal.
+ */
 void handle_sigint(int sig) {
   if (sig) {} // ignore ctrl+C
 }
