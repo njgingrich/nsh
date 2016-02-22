@@ -281,14 +281,14 @@ void NathanShell::dir(vector<string> args) {
   auto b_exists = std::find(args.begin(), args.end(), "-b");
   if (a_exists != args.end()) {
     a_flag = true;
-    args.erase(a_exists);
+    //args.erase(a_exists);
   }
   if (b_exists != args.end()) {
     b_flag = true;
-    args.erase(b_exists);
+    //args.erase(b_exists);
   }
   if (!args.empty()) {
-    dir_name = args.front();
+    dir_name = args.back();
   }
 
   chdir(dir_name.c_str());
